@@ -22,7 +22,7 @@ uploaded_files = st.file_uploader("Upload Property Photos (Max 5)", accept_multi
 if uploaded_files and st.button("Generate Description"):
     with st.spinner("Analyzing photos and writing description..."):
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash-latest')
             images = [Image.open(file) for file in uploaded_files]
             
             prompt = f"""
