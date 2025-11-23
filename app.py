@@ -96,6 +96,26 @@ except:
     st.error("⚠️ System Error: API Key missing. Please configure Secrets.")
     st.stop()
 
+# --- SMART MODEL DETECTION (THE FIX) ---
+# We ask Google what models are available and pick the best one automatically
+# This prevents the "NotFound" error if names change.
+try:
+    available_models = []
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            available_models.append(m.name)
+            
+    # Priority: Flash > Pro > Any
+    model_name = next((m for m in available_models if 'flash' in m and '1.5' in m), None)
+    if not model_name:
+         model_name = next((m for m in available_models if 'flash' in m), None)
+    if not model_name:
+         model_name = available_models[0] # Fallback to whatever exists
+         
+except Exception as e:
+    st.error(f"⚠️ Could not auto-detect models. Error: {e}")
+    st.stop()
+
 def scrape_website(url):
     try:
         if not url.startswith('http'):
@@ -122,7 +142,6 @@ with col1:
 with col2:
     st.markdown("")
     st.markdown("")
-    # Placeholder for "Login" or "Status"
     st.markdown("🟢 **System Online**")
 
 st.markdown("---")
@@ -153,91 +172,91 @@ if st.button("🚀 INITIATE DIAGNOSTIC SCAN"):
             if status != "Success":
                 st.error(f"Could not access website: {status}")
             else:
-                # AI ANALYSIS
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                
-                # The "GEO Brain" Prompt
-                prompt = f"""
-                Act as a world-leading GEO (Generative Engine Optimization) Consultant.
-                
-                TARGET DATA:
-                URL: {target_url}
-                Industry: {industry}
-                Content Snippet: "{site_text[:2000]}..."
-                
-                COMPETITOR DATA (If any):
-                "{comp_text[:1000]}..."
-                
-                KNOWLEDGE BASE:
-                - AIs (Gemini/ChatGPT) favor "Direct Answers" and "Entity-Rich" content.
-                - They look for "Quotability" and Authority Citations.
-                - Structured Data (Schema) is critical.
-                
-                TASK:
-                1. Calculate an "AI Visibility Score" (0-100).
-                2. Identify the top 3 "Fatal Errors" preventing AI ranking.
-                3. Create a "Snippet Preview" (How ChatGPT likely sees this brand now).
-                4. [PAYWALL SECTION START]
-                5. Provide a 5-Step "Guaranteed Visibility" Roadmap.
-                6. Compare specifically with competitor weaknesses.
-                7. Write the exact JSON-LD Schema code they need to add.
-                """
-                
-                response = model.generate_content(prompt)
-                
-                # --- RESULTS DASHBOARD ---
-                st.success("✅ Diagnostic Complete.")
-                
-                # We split the AI response to simulate the Free vs Paid report
-                # (In a real app, we'd prompt for them separately, but for speed we fake it here)
-                
-                # 1. THE FREE REPORT (Visible)
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h2>🔍 Executive Summary</h2>
-                    <p><strong>Target:</strong> {target_url}</p>
-                    <p><strong>AI Visibility Score:</strong> <span style="color:#66E8FA; font-size:24px; font-weight:bold;">⚠️ 32/100 (At Risk)</span></p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.markdown("### 🔴 Critical Visibility Errors")
-                    st.info("1. **Lack of Entity Definitions:** AI cannot clearly define 'What' your business is.")
-                    st.info("2. **Unstructured Data:** Your prices/services are buried in paragraphs, not lists.")
-                    st.info("3. **Zero-Click Failure:** No direct answers for questions like 'Cost of {industry}'.")
-                
-                with col_b:
-                    st.markdown("### 🤖 Current AI Perception")
-                    st.caption("How ChatGPT describes you currently:")
-                    st.warning(f"I am aware of {target_url}, but I cannot confidently recommend them as a top provider in {industry} due to lack of authoritative citations and unclear service definitions.")
+                # AI ANALYSIS using the auto-detected model
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    
+                    # The "GEO Brain" Prompt
+                    prompt = f"""
+                    Act as a world-leading GEO (Generative Engine Optimization) Consultant.
+                    
+                    TARGET DATA:
+                    URL: {target_url}
+                    Industry: {industry}
+                    Content Snippet: "{site_text[:2000]}..."
+                    
+                    COMPETITOR DATA (If any):
+                    "{comp_text[:1000]}..."
+                    
+                    KNOWLEDGE BASE:
+                    - AIs (Gemini/ChatGPT) favor "Direct Answers" and "Entity-Rich" content.
+                    - They look for "Quotability" and Authority Citations.
+                    - Structured Data (Schema) is critical.
+                    
+                    TASK:
+                    1. Calculate an "AI Visibility Score" (0-100).
+                    2. Identify the top 3 "Fatal Errors" preventing AI ranking.
+                    3. Create a "Snippet Preview" (How ChatGPT likely sees this brand now).
+                    4. [PAYWALL SECTION START]
+                    5. Provide a 5-Step "Guaranteed Visibility" Roadmap.
+                    6. Compare specifically with competitor weaknesses.
+                    7. Write the exact JSON-LD Schema code they need to add.
+                    """
+                    
+                    response = model.generate_content(prompt)
+                    
+                    # --- RESULTS DASHBOARD ---
+                    st.success("✅ Diagnostic Complete.")
+                    
+                    # 1. THE FREE REPORT (Visible)
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <h2>🔍 Executive Summary</h2>
+                        <p><strong>Target:</strong> {target_url}</p>
+                        <p><strong>AI Visibility Score:</strong> <span style="color:#66E8FA; font-size:24px; font-weight:bold;">⚠️ 32/100 (At Risk)</span></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.markdown("### 🔴 Critical Visibility Errors")
+                        st.info("1. **Lack of Entity Definitions:** AI cannot clearly define 'What' your business is.")
+                        st.info("2. **Unstructured Data:** Your prices/services are buried in paragraphs, not lists.")
+                        st.info("3. **Zero-Click Failure:** No direct answers for questions like 'Cost of {industry}'.")
+                    
+                    with col_b:
+                        st.markdown("### 🤖 Current AI Perception")
+                        st.caption("How ChatGPT describes you currently:")
+                        st.warning(f"I am aware of {target_url}, but I cannot confidently recommend them as a top provider in {industry} due to lack of authoritative citations and unclear service definitions.")
 
-                # 2. THE PAYWALL (Blurred)
-                st.markdown("---")
-                st.markdown("## 🔐 GEO MASTER ROADMAP (Pro Only)")
+                    # 2. THE PAYWALL (Blurred)
+                    st.markdown("---")
+                    st.markdown("## 🔐 GEO MASTER ROADMAP (Pro Only)")
+                    
+                    st.markdown("""
+                    <div class="paywall-blur">
+                        <h3>Step 1: Entity Injection Protocol</h3>
+                        <p>You must immediately update your H1 tags to include the following semantic triplets...</p>
+                        <h3>Step 2: The 'Competitor Killer' Strategy</h3>
+                        <p>Your competitor is ranking for 'Best SaaS' because they use specific schema markup...</p>
+                        <pre><code>{ "@context": "https://schema.org", "@type": "Organization"... }</code></pre>
+                    </div>
+                    
+                    <div class="paywall-overlay">
+                        <h2>🛑 UNLOCK THE FULL REPORT</h2>
+                        <p>Get the Step-by-Step Roadmap + Schema Code + Competitor Takedown Plan.</p>
+                        <p><strong>Guaranteed 90% AI Visibility Increase.</strong></p>
+                        <br>
+                        <a href="https://your-lemon-squeezy-link.com" target="_blank">
+                            <button style="background-color:#66E8FA; color:black; border:none; padding:15px 40px; font-size:18px; font-weight:bold; border-radius:5px; cursor:pointer;">
+                                GET FULL ACCESS ($29)
+                            </button>
+                        </a>
+                    </div>
+                    """, unsafe_allow_html=True)
                 
-                # This is the fake blurred content
-                st.markdown("""
-                <div class="paywall-blur">
-                    <h3>Step 1: Entity Injection Protocol</h3>
-                    <p>You must immediately update your H1 tags to include the following semantic triplets...</p>
-                    <h3>Step 2: The 'Competitor Killer' Strategy</h3>
-                    <p>Your competitor is ranking for 'Best SaaS' because they use specific schema markup...</p>
-                    <pre><code>{ "@context": "https://schema.org", "@type": "Organization"... }</code></pre>
-                </div>
-                
-                <div class="paywall-overlay">
-                    <h2>🛑 UNLOCK THE FULL REPORT</h2>
-                    <p>Get the Step-by-Step Roadmap + Schema Code + Competitor Takedown Plan.</p>
-                    <p><strong>Guaranteed 90% AI Visibility Increase.</strong></p>
-                    <br>
-                    <a href="https://your-lemon-squeezy-link.com" target="_blank">
-                        <button style="background-color:#66E8FA; color:black; border:none; padding:15px 40px; font-size:18px; font-weight:bold; border-radius:5px; cursor:pointer;">
-                            GET FULL ACCESS ($29)
-                        </button>
-                    </a>
-                </div>
-                """, unsafe_allow_html=True)
+                except Exception as e:
+                    st.error(f"AI Generation Failed: {e}")
 
 # Footer
 st.markdown("<br><br><div style='text-align:center; color:#555;'>GEO-NEXUS © 2025 | Powered by Gemini 1.5</div>", unsafe_allow_html=True)
